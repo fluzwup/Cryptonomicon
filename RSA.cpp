@@ -170,20 +170,16 @@ string RSAKey::DecryptRSA(string input, string keyFile, string kek, bool useECB)
 
 bool RSAKey::ValidateRSAKey(string keyFile, string kek, bool useECB)
 {
-	// random quote from Snow Crash to encrypt/decrypt
-	const char text[] = "CHISELED SPAM is what you will see in the mirror if you surf on a weak "
-		"plank with dumb, fixed wheels and interface with a muffler, retread, snow turd, road "
-		"kill, driveshaft, railroad tie, or unconscious pedestrian.  If you think this is "
-		"unlikely, you've been surfing too many ghost malls. All of these obstacles and more "
-		"were recently observed on a one-mile stretch of the New Jersey Turnpike. Any surfer "
-		"who tried to groove that 'vard on a stock plank would have been sneezing brains.  "
-		"Don't listen to so-called purists who claim any obstacle can be jumped. Professional "
-		"Kouriers know: If you have pooned a vehicle moving fast enough for fun and profit, "
-		"your reaction time is cut to tenths of a second-even less if you are way spooled.  "
-		"Buy a set of RadiKS Mark II Smartwheels-it's cheaper than a total face retread and a "
-		"lot more fun. Smartwheels use sonar, laser rangefinding, and millimeter-wave radar "
-		"to identify mufflers and other debris before you even get honed about them.  Don't "
-		"get Midasized-upgrade today.";
+	// random quote from Neal Stephenson's Cryptonomicon to encrypt/decrypt
+	const char text[] = "The giant heaping bowl of sodden cereal, awash in milk, is the mark of the novice. "
+		"Ideally one wants the bone-dry cereal nuggets and the cryogenic milk to enter the mouth with "
+		"minimal contact and for the entire reaction between them to take place in the mouth. Randy has "
+		"worked out a set of mental blueprints for a special cereal-eating spoon that will have a tube "
+		"running down the handle and a little pump for the milk, so that you can spoon dry cereal up out "
+		"of a bowl, hit a button with your thumb, and squirt milk into the bowl of the spoon even as you "
+		"are introducing it into your mouth. The next best thing is to work in small increments, putting "
+		"only a small amount of Cap’n Crunch in your bowl at a time and eating it all up before it becomes "
+		"a pit of loathsome slime, which, in the case of Cap’n Crunch, takes about thirty seconds.";
 
 	ReadKeyFile(keyFile, kek, useECB);
 	if(d == "" && p == "") throw "Cannot validate RSA key without private exponent or CRT components.";
