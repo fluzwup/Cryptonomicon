@@ -2,7 +2,7 @@
 BINARY = cryptonomicon
 
 CXXSOURCES = main.cpp DES.cpp RSA.cpp Flint/flintpp.cpp  
-CSOURCES = Flint/flint.c  Flint/kmul.c  
+CSOURCES = Flint/flint.c  Flint/kmul.c Flint/sha1.c 
 
 OBJECTS = ${CXXSOURCES:.cpp=.o} ${CSOURCES:.c=.o} 
 
@@ -10,7 +10,7 @@ INCLUDES = -I . -I Flint -I /usr/include
 
 LOCATIONS = -L/usr/lib64
 
-LIBRARIES = -lcrypto
+LIBRARIES = 
 
 CXXFLAGS = -ggdb -fmessage-length=0 -ansi -Wall
 CFLAGS = -ggdb -fmessage-length=0 -ansi -Wall

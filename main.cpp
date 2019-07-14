@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
-#include <openssl/sha.h>
+#include <Flint/sha1.h>
 #include <unistd.h>
 using namespace std;
 #include "main.h"
@@ -463,7 +463,7 @@ void FindSHA1(string data)
 
 		hex2bin(data.c_str(), binary, len);	
 
-		SHA1(binary, len, hash);
+		sha1_l(hash, binary, len);
 
 		char output[41];
 
