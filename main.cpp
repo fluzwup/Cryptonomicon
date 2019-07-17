@@ -584,7 +584,7 @@ void Pack(string source, unsigned char *packed, int *len)
 }
 
 // data is last 14 of PAN plus 2 digit sequence number
-void GenerateSKD(string key, string data)
+string GenerateSKD(string key, string data)
 {
 	// MasterCard proprietary SKD method, M/Chip 4 Version 1.1, 
 	// Security & Key Management, 7-4
@@ -595,7 +595,7 @@ void GenerateSKD(string key, string data)
 	if(data.length() < 16)
 	{
 		printf("Value of R must be 8 bytes (16 hex digits).\n\n");
-		return;
+		return "";
 	}
 	unsigned char k[64];
 	int klen;
@@ -623,7 +623,8 @@ void GenerateSKD(string key, string data)
 	bin2hex(outL, 8, SKDL);
 	bin2hex(outR, 8, SKDR);
 
-	printf("SKD is %s%s\n\n", SKDL, SKDR);
+//	printf("SKD is %s%s\n\n", SKDL, SKDR);
+	return (string)SKDL + (string)SKDR;
 }
 
 // XORs two ASCII strings containing hexadecimal data together
@@ -652,7 +653,7 @@ string StringXOR(string one, string two)
 }
 
 // Generates a uniquely derived key
-void GenerateUDK(string key, string PAN, string Sequence)
+string GenerateUDK(string key, string PAN, string Sequence)
 {
 /*
       M/Chip 4 Version 1.1 Security & Key Management June 2006
@@ -672,7 +673,8 @@ void GenerateUDK(string key, string PAN, string Sequence)
 
 	AdjustParity(Z);
 
-	printf("Derived key is %s\n", Z);
+//	printf("Derived key is %s\n", Z);
+	return Z;
 }
 
 // This assumes the mandatory "80" has been added already, for CVN methods other than Visa CVN 10
@@ -907,6 +909,9 @@ int main(int argc, char **argv)
 	string PVV = "";
 	string ARQC = "";
 	string ARPC = "";
+	string seq = "";
+	string ATC = "";
+	string unp = "";
 
 
 	if(argc == 1)
@@ -924,11 +929,13 @@ int main(int argc, char **argv)
 		"\tcheckRSAKey key=keyfile [kek=Key] [ecb|cbc] (omit filename for format info)\n"
 		"\tcreatePVV key=keyName PAN=XXXXXXXXXXXXXXXX [PIN=XXXX | PVV=XXXX]\n"
 		"\tcvc key=CVKname PAN=XXXXXXXXXXXXXXXX data=YYMMSVC (data is date and 3 service code)\n"
-		"\tudk key=MDK PAN=XXXXXXXXXXXXXXX data=XX (data is sequence number)\n"
-		"\tskd key=UDK data=R (M/Chip     R = ATC + '0000' + unpredictable number)\n"
-		"\t                   (EMV 2000   R = ATC + '000000000000')\n"
+		"\tudk key=MDK PAN=XXXXXXXXXXXXXXX seq=XX (seq is sequence number)\n"
+		"\tskd key=UDK ATC=XXXX [unp=XXXXXXXX]\n"
+		"\t    (EMV 2000 uses ATC, M/Chip uses ATC and unpredictable number)\n"
 		"\tgenerateAC key=SessionKey data=DataBlocks (uses 80... padding, session key)\n"
+		"\tgenerateAC key=IMK PAN=XXX seq=XX ATC=XXXX [unp=XXXXXXXX] data=DataBlocks\n"
 		"\tgenerateAC_Visa_CVN10 key=UDK data=DataBlocks (uses 00.. padding, direct UDK)\n"
+		"\tgenerateAC_Visa_CVN10 key=MDK PAN=XXX seq=XX data=DataBlocks\n"
 		"\tgetARPC_M1 key=UDK ARQC=XXXXXXXXXXXXXXXX data=XXXX (CSU or ASCII field 39)\n"
 		"\tgetARPC_M2 key=SKD ARQC=XXXXXXXXXXXXXXXX data=XXXX (CSU + proprietary auth data)\n"
 		"\tgetRC key=UDK ARQC=XXXXXXXXXXXXXXXX ARPC=XXXXXXXXXXXXXXXX\n"
@@ -1003,6 +1010,12 @@ int main(int argc, char **argv)
 			skd = true;
 		else if(strcmp(argv[i], "udk") == 0)
 			udk = true;
+		else if(strncmp(argv[i], "seq=", 4) == 0)
+			seq = argv[i] + 4;
+		else if(strncmp(argv[i], "ATC=", 4) == 0)
+			ATC = argv[i] + 4;
+		else if(strncmp(argv[i], "unp=", 4) == 0)
+			unp = argv[i] + 4;
 		else if(strcmp(argv[i], "checkParity") == 0)
 			checkParity = true;
 		else if(strcmp(argv[i], "export3components") == 0)
@@ -1199,13 +1212,17 @@ int main(int argc, char **argv)
 	// generate MasterCard session key using SKD method
 	if(skd)
 	{
-		if(data == "")
+		if(ATC == "")
 		{
-			printf("No data specified!  Provide value of R.\n");
+			printf("No data specified!  Provide ATC and, for M/Chip, unpredictable number.\n");
 			return -1;
 		}
-		
-		GenerateSKD(key, data);
+
+		if(unp == "") unp = "00000000";
+		string R = ATC + "0000" + unp;
+
+		string SKD = GenerateSKD(key, R.c_str());
+		printf("Session key is %s\n", SKD.c_str());
 		return 0;
 	}
 
@@ -1229,6 +1246,39 @@ int main(int argc, char **argv)
 			data += "80";
 		}
 
+		// if we have PAN, then assume we're given a master key and need to derive the UDK and/or session key
+		if(PAN != "")
+		{
+			// all methods need a UDK
+			if(seq == "")
+			{
+				printf("Provide sequence number.\n");
+				return -1;
+			}
+
+			string UDK = GenerateUDK(key, PAN, seq);
+			printf("Derived key is %s\n", UDK.c_str());
+
+			if(generateAC_Visa_CVN10)
+			{
+				printf("Cryptogram is %s\n\n", GenerateAC(UDK, data, "00").c_str());
+				return 0;
+			}
+
+			string R = ATC + "0000";
+			if(unp == "")
+				R += "00000000";
+			else
+				R += unp;
+
+			// All but Visa CVN 10 need a session key
+			string SKD = GenerateSKD(UDK, R);
+			printf("Session key is %s\n", SKD.c_str());
+			
+			printf("Cryptogram is %s\n\n", GenerateAC(SKD, data, "00").c_str());
+			return 0;
+		}
+		
 		// Visa CVN 10 skips the "80", but all methods pad to an even mulitple of 8 bytes with "00"
 		printf("ARQC is %s\n", GenerateAC(key, data, "00").c_str());
 		return 0;
@@ -1333,13 +1383,14 @@ int main(int argc, char **argv)
 			printf("No PAN specified!\n");
 			return -1;
 		}
-		if(data == "")
+		if(seq == "")
 		{
-			printf("No data specified!  Provide sequence number.\n");
+			printf("Provide sequence number.\n");
 			return -1;
 		}
 
-		GenerateUDK(key, PAN, data);
+		string UDK = GenerateUDK(key, PAN, seq);
+		printf("UDK is %s\n", UDK.c_str());
 		return 0;
 	}
 
