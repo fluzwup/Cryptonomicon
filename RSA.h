@@ -26,7 +26,8 @@ public:
 	// encrypt with public key, same as verification
 	string EncryptRSA(string input, string keyFile = "");
 	// decrypt with private key, same as signing; KEK only needed of keyfile is encrypted
-	string DecryptRSA(string input, string keyFile = "", string kek = "", bool useECB = false);
+	// useCRT parameter is trinary; 0 means doesn't matter, 1 means force CRT, -1 means force non-CRT
+	string DecryptRSA(string input, string keyFile = "", string kek = "", bool useECB = false, int useCRT = 0);
 
 	// encrypt with the public key, decrypt with the private key
 	// sign with CRT components, verify with public key

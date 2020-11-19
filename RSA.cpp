@@ -120,7 +120,9 @@ string RSAKey::EncryptRSA(string input, string keyFile)
 	return cleanHEX(c.hexstr());
 }
 
-string RSAKey::DecryptRSA(string input, string keyFile, string kek, bool useECB)
+// useCRT parameter is trinary; 0 means doesn't matter, 1 means force CRT, -1 means force non-CRT
+// default to 0, use whichever we have
+string RSAKey::DecryptRSA(string input, string keyFile, string kek, bool useECB, int useCRT)
 {
 	if(keyFile != "") ReadKeyFile(keyFile, kek, useECB);
 
@@ -133,7 +135,8 @@ string RSAKey::DecryptRSA(string input, string keyFile, string kek, bool useECB)
 	string cipher = cleanHEX(input);
 	LINT C(cipher.c_str(), 16);
 
-	if(d != "")
+	// if we have d, and are not forcing CRT use, use d
+	if(d != "" && useCRT != 1)
 	{
 		LINT N(n.c_str(), 16);
 		LINT D(d.c_str(), 16);
@@ -143,6 +146,9 @@ string RSAKey::DecryptRSA(string input, string keyFile, string kek, bool useECB)
 
 		return cleanHEX(M.hexstr());
 	}
+
+	if(useCRT == -1)
+		throw "Private exponent required.";
 
 	// make sure we have all five
 	if(p == "" || q == "" || dP == "" || dQ == "" || qInv == "")
@@ -196,17 +202,17 @@ bool RSAKey::ValidateRSAKey(string keyFile, string kek, bool useECB)
 	// encrypt message with public key
 	string cipher = cleanHEX(EncryptRSA(msg));
 
-	// verify with private exponent, if present
+	// verify with private exponent, if present, by setting useCRT to -1
 	if(d != "")
 	{
-		string output = cleanHEX(DecryptRSA(cipher));
+		string output = cleanHEX(DecryptRSA(cipher, "", "", false, -1));
 		if(output != msg) return false;
 	}
 	
-	// verify with CRT components, if present
+	// verify with CRT components, if present, by setting useCRT to 1
 	if(p != "")
 	{
-		string output = cleanHEX(DecryptRSA(cipher));
+		string output = cleanHEX(DecryptRSA(cipher, "", "", false, 1));
 		if(output != msg) return false;
 	}
 
